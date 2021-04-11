@@ -9,7 +9,7 @@ Ju.eval("torgba(c) = (c=Colors.RGBA{Colors.N0f8}(c); \
     rgba=(Colors.red(c),Colors.green(c),Colors.blue(c),Colors.alpha(c)); \
         reinterpret.(UInt8, rgba))")
 Ju.eval("torgba(img::AbstractArray) = torgba.(img)")
-Ju.eval('suspendedfuncfactory(fun, args...; kargs...) = (c::Channel)->fun(()->put!(c, "wait"), args...; kargs...)')
+Ju.eval('suspendedfuncfactory(fun, args...; kargs...) = (c::Channel)->fun(()->(put!(c,"waiting");take!(c)), args...; kargs...)')
 
 def paint(wc, *args, **kargs):
     mat = Ju.torgba(Ju.paint(wc.jwc, *args, **kargs))
@@ -75,9 +75,10 @@ class suspendedfun:
         f = Ju.suspendedfuncfactory(self.fun, self.wc.jwc, *self.args, **self.kargs)
         self.taskref = Ju.eval("Ref{Task}()")
         self.chn = Ju.Channel(f, taskref=self.taskref)
+        Ju.eval("take!")(self.chn)
         return self.wc
     def __exit__(self, exc_type, exc_val, exc_tb):
-        Ju.eval("take!")(self.chn)
+        Ju.eval("put!")(self.chn, "go")
         Ju.wait(Ju.getindex(self.taskref))
         assert Ju.istaskdone(Ju.getindex(self.taskref))
         return exc_type is None
