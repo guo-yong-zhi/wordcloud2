@@ -5,10 +5,10 @@ import numpy as np
 Main.using("WordCloud")
 
 Main.eval("Colors=WordCloud.Colors") 
-Main.eval("torgba(img) = (c->(reinterpret(UInt8, Colors.red(c)), \
-    reinterpret(UInt8, Colors.green(c)), \
-        reinterpret(UInt8, Colors.blue(c)), \
-            reinterpret(UInt8, Colors.alpha(c)))).(Colors.RGBA{Colors.N0f8}.(img))")
+Main.eval("torgba(c) = (c=Colors.RGBA{Colors.N0f8}(c); \
+    rgba=(Colors.red(c),Colors.green(c),Colors.blue(c),Colors.alpha(c)); \
+        reinterpret.(UInt8, rgba))")
+Main.eval("torgba(img::AbstractMatrix) = torgba.(img)")
 
 wc = Main.wordcloud(["1"], [1]);
 
@@ -39,3 +39,28 @@ class WC:
 def wordcloud(*args, **kargs):
     wc = Main.wordcloud(*args, **kargs)
     return WC(wc)
+
+def wcfuncfactory(name):
+    def fun(*args, **kargs):
+        pwc, *oths = args
+        jwc = Main.eval(name)(pwc.WC, *oths, **kargs)
+        return pwc
+    return fun
+def funcfactory(name):
+    def fun(*args, **kargs):
+        pwc, *oths = args
+        r = Main.eval(name)(pwc.WC, *oths, **kargs)
+        return r
+    return fun
+
+def __getattr__(name):
+    if name == "getcolor":
+        return
+    if name in ["generate", "placement", "rescale","initimages"]:
+        return wcfuncfactory(name + "!")
+    if name.startswith("get"):
+        return funcfactory(name)
+    if name.startswith("set"):
+        return funcfactory(name + "!")
+
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
