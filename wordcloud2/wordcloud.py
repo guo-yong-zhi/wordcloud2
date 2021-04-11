@@ -8,9 +8,8 @@ Ju.eval("Colors=WordCloud.Colors")
 Ju.eval("torgba(c) = (c=Colors.RGBA{Colors.N0f8}(c); \
     rgba=(Colors.red(c),Colors.green(c),Colors.blue(c),Colors.alpha(c)); \
         reinterpret.(UInt8, rgba))")
-Ju.eval("torgba(img::AbstractMatrix) = torgba.(img)")
+Ju.eval("torgba(img::AbstractArray) = torgba.(img)")
 Ju.eval('suspendedfuncfactory(fun, args...; kargs...) = (c::Channel)->fun(()->put!(c, "wait"), args...; kargs...)')
-wc = Ju.wordcloud(["1"], [1]);
 
 def paint(wc, *args, **kargs):
     mat = Ju.torgba(Ju.paint(wc.jwc, *args, **kargs))
@@ -54,8 +53,6 @@ def funcfactory(name):
     return fun
 
 def __getattr__(name):
-    if name == "getcolor":
-        return
     if name in ["generate", "placement", "rescale","initimages"]:
         return wcfuncfactory(name + "!")
     if name.startswith("get"):
@@ -64,7 +61,10 @@ def __getattr__(name):
         return funcfactory(name + "!")
 
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
-    
+
+def getcolors(wc, *args, **kargs):
+    return Ju.torgba(Ju.getcolors(wc.jwc, *args, **kargs))
+
 class suspendedfun:
     def __init__(self, fun, wc, *args, **kargs):
         self.wc = wc
