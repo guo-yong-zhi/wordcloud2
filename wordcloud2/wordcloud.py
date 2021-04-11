@@ -15,3 +15,12 @@ wc = Main.wordcloud(["1"], [1]);
 mat = Main.torgba(Main.paint(wc))
 mat = np.array(mat).astype('uint8')
 img = Image.fromarray(mat)
+
+class SVG:
+    def __init__(self, svgstring):
+        self.content = svgstring
+    def _repr_svg_(self):
+        return self.content
+        
+svg = Main.paintsvg(wc);
+SVG(Main.svgstring(svg))
