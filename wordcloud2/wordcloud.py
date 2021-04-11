@@ -1,19 +1,19 @@
 from julia import Main
 from PIL import Image
 import numpy as np
+Ju = Main
+Ju.using("WordCloud")
 
-Main.using("WordCloud")
-
-Main.eval("Colors=WordCloud.Colors") 
-Main.eval("torgba(c) = (c=Colors.RGBA{Colors.N0f8}(c); \
+Ju.eval("Colors=WordCloud.Colors") 
+Ju.eval("torgba(c) = (c=Colors.RGBA{Colors.N0f8}(c); \
     rgba=(Colors.red(c),Colors.green(c),Colors.blue(c),Colors.alpha(c)); \
         reinterpret.(UInt8, rgba))")
-Main.eval("torgba(img::AbstractMatrix) = torgba.(img)")
-Main.eval('suspendedfuncfactory(fun, args...; kargs...) = (c::Channel)->fun(()->put!(c, "wait"), args...; kargs...)')
-wc = Main.wordcloud(["1"], [1]);
+Ju.eval("torgba(img::AbstractMatrix) = torgba.(img)")
+Ju.eval('suspendedfuncfactory(fun, args...; kargs...) = (c::Channel)->fun(()->put!(c, "wait"), args...; kargs...)')
+wc = Ju.wordcloud(["1"], [1]);
 
 def paint(wc, *args, **kargs):
-    mat = Main.torgba(Main.paint(wc.WC, *args, **kargs))
+    mat = Ju.torgba(Ju.paint(wc.jwc, *args, **kargs))
     mat = np.array(mat).astype('uint8')
     img = Image.fromarray(mat)
     return img
@@ -25,31 +25,31 @@ class SVG:
         return self.content
 
 def paintsvg(wc, *args, **kargs):
-    svg = Main.paintsvg(wc.WC, *args, **kargs);
-    return SVG(Main.svgstring(svg))
+    svg = Ju.paintsvg(wc.jwc, *args, **kargs);
+    return SVG(Ju.svgstring(svg))
 
 class WC:
     def __init__(self, wc):
-        self.WC = wc
+        self.jwc = wc
     def __repr__(self):
-        return f"wordcloud({self.WC.words}) #{len(self.WC.words)} words"
+        return f"wordcloud({self.jwc.words}) #{len(self.jwc.words)} words"
     def _repr_png_(self):
         return paint(self)._repr_png_()
 
 def wordcloud(*args, **kargs):
-    wc = Main.wordcloud(*args, **kargs)
+    wc = Ju.wordcloud(*args, **kargs)
     return WC(wc)
 
 def wcfuncfactory(name):
     def fun(*args, **kargs):
         pwc, *oths = args
-        jwc = Main.eval(name)(pwc.WC, *oths, **kargs)
+        jwc = Ju.eval(name)(pwc.jwc, *oths, **kargs)
         return pwc
     return fun
 def funcfactory(name):
     def fun(*args, **kargs):
         pwc, *oths = args
-        r = Main.eval(name)(pwc.WC, *oths, **kargs)
+        r = Ju.eval(name)(pwc.jwc, *oths, **kargs)
         return r
     return fun
 
@@ -72,22 +72,22 @@ class suspendedfun:
         self.kargs = kargs
         self.fun = fun
     def __enter__(self):
-        f = Main.suspendedfuncfactory(self.fun, self.wc.WC, *self.args, **self.kargs)
-        self.taskref = Main.eval("Ref{Task}()")
-        self.chn = Main.Channel(f, taskref=self.taskref)
+        f = Ju.suspendedfuncfactory(self.fun, self.wc.jwc, *self.args, **self.kargs)
+        self.taskref = Ju.eval("Ref{Task}()")
+        self.chn = Ju.Channel(f, taskref=self.taskref)
         return self.wc
     def __exit__(self, exc_type, exc_val, exc_tb):
-        Main.eval("take!")(self.chn)
-        Main.wait(Main.getindex(self.taskref))
-        assert Main.istaskdone(Main.getindex(self.taskref))
+        Ju.eval("take!")(self.chn)
+        Ju.wait(Ju.getindex(self.taskref))
+        assert Ju.istaskdone(Ju.getindex(self.taskref))
         return exc_type is None
     
 class keep(suspendedfun):
     def __init__(self, wc, *args, **kargs):
-        super().__init__(Main.keep, wc, *args, **kargs)
+        super().__init__(Ju.keep, wc, *args, **kargs)
 class ignore(suspendedfun):
     def __init__(self, wc, *args, **kargs):
-        super().__init__(Main.ignore, wc, *args, **kargs)
+        super().__init__(Ju.ignore, wc, *args, **kargs)
 class pin(suspendedfun):
     def __init__(self, wc, *args, **kargs):
-        super().__init__(Main.pin, wc, *args, **kargs)
+        super().__init__(Ju.pin, wc, *args, **kargs)
