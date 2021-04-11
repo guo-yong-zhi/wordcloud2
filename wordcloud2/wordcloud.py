@@ -9,7 +9,7 @@ Main.eval("torgba(c) = (c=Colors.RGBA{Colors.N0f8}(c); \
     rgba=(Colors.red(c),Colors.green(c),Colors.blue(c),Colors.alpha(c)); \
         reinterpret.(UInt8, rgba))")
 Main.eval("torgba(img::AbstractMatrix) = torgba.(img)")
-
+Main.eval('suspendedfuncfactory(fun, args...; kargs...) = (c::Channel)->fun(()->put!(c, "wait"), args...; kargs...)')
 wc = Main.wordcloud(["1"], [1]);
 
 def paint(wc, *args, **kargs):
@@ -64,3 +64,30 @@ def __getattr__(name):
         return funcfactory(name + "!")
 
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
+    
+class suspendedfun:
+    def __init__(self, fun, wc, *args, **kargs):
+        self.wc = wc
+        self.args = args
+        self.kargs = kargs
+        self.fun = fun
+    def __enter__(self):
+        f = Main.suspendedfuncfactory(self.fun, self.wc.WC, *self.args, **self.kargs)
+        self.taskref = Main.eval("Ref{Task}()")
+        self.chn = Main.Channel(f, taskref=self.taskref)
+        return self.wc
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        Main.eval("take!")(self.chn)
+        Main.wait(Main.getindex(self.taskref))
+        assert Main.istaskdone(Main.getindex(self.taskref))
+        return exc_type is None
+    
+class keep(suspendedfun):
+    def __init__(self, wc, *args, **kargs):
+        super().__init__(Main.keep, wc, *args, **kargs)
+class ignore(suspendedfun):
+    def __init__(self, wc, *args, **kargs):
+        super().__init__(Main.ignore, wc, *args, **kargs)
+class pin(suspendedfun):
+    def __init__(self, wc, *args, **kargs):
+        super().__init__(Main.pin, wc, *args, **kargs)
