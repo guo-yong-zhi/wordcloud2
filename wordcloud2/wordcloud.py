@@ -1,3 +1,4 @@
+import sys
 from julia import Main
 from PIL import Image
 import numpy as np
@@ -36,31 +37,10 @@ class WC:
         return paint(self)._repr_png_()
 
 def wordcloud(*args, **kargs):
+    if "colors" in kargs and isinstance(kargs["colors"],str) and kargs["colors"].startswith(":"):
+        kargs["colors"] = Ju.eval("PyCall.pyjlwrap_new(%s)"%kargs["colors"])
     wc = Ju.wordcloud(*args, **kargs)
     return WC(wc)
-
-def wcfuncfactory(name):
-    def fun(*args, **kargs):
-        pwc, *oths = args
-        jwc = Ju.eval(name)(pwc.jwc, *oths, **kargs)
-        return pwc
-    return fun
-def funcfactory(name):
-    def fun(*args, **kargs):
-        pwc, *oths = args
-        r = Ju.eval(name)(pwc.jwc, *oths, **kargs)
-        return r
-    return fun
-
-def __getattr__(name):
-    if name in ["generate", "placement", "rescale","initimages"]:
-        return wcfuncfactory(name + "!")
-    if name.startswith("get"):
-        return funcfactory(name)
-    if name.startswith("set"):
-        return funcfactory(name + "!")
-
-    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 def getcolors(wc, *args, **kargs):
     return Ju.torgba(Ju.getcolors(wc.jwc, *args, **kargs))
@@ -92,3 +72,38 @@ class ignore(suspendedfun):
 class pin(suspendedfun):
     def __init__(self, wc, *args, **kargs):
         super().__init__(Ju.pin, wc, *args, **kargs)
+
+def wcfuncfactorywc(name):
+    def fun(*args, **kargs):
+        pwc, *oths = args
+        jwc = Ju.eval(name)(pwc.jwc, *oths, **kargs)
+        return pwc
+    return fun
+def wcfuncfactory(name):
+    def fun(*args, **kargs):
+        pwc, *oths = args
+        r = Ju.eval(name)(pwc.jwc, *oths, **kargs)
+        return r
+    return fun
+def funcfactory(name):
+    return lambda *args,**kargs:Ju.eval(name)(*args, **kargs)
+
+this = sys.modules[__name__]
+for pyfun in ["generate", "generate_animation", "placement", "rescale", "initimages"]:
+    setattr(this, pyfun, wcfuncfactorywc(pyfun + "!"))
+for fun in set(Ju.eval("names(WordCloud)")) - {'WordCloud'}:
+    pyfun = fun.rstrip("!")
+    if not hasattr(this, pyfun):
+        if (pyfun.startswith("get") or pyfun.startswith("set")) and "shift" not in pyfun:
+            setattr(this, pyfun, wcfuncfactory(fun))
+        else:
+            setattr(this, pyfun, funcfactory(fun))
+
+def __getattr__(name):
+    try:
+        return Ju.eval("WordCloud.%s"%name)
+    except:
+        pass
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
+
+
