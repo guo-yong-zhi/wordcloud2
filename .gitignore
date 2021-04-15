@@ -15,3 +15,5 @@ docs/build_*
 # misc
 .DS_Store
 .ipynb_checkpoints
+address_compare*
+guxiang_animation*
