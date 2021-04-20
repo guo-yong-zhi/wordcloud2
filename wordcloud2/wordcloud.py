@@ -5,22 +5,15 @@ import numpy as np
 Ju = Main
 Ju.using("WordCloud")
 
-Ju.eval("Colors=WordCloud.Colors") 
-Ju.eval("torgba(c) = (c=Colors.RGBA{Colors.N0f8}(c); \
-    rgba=(Colors.red(c),Colors.green(c),Colors.blue(c),Colors.alpha(c)); \
-        reinterpret.(UInt8, rgba))")
-Ju.eval("torgba(img::AbstractArray) = torgba.(img)")
 Ju.eval('suspendedfuncfactory(fun, args...; kargs...) = (c::Channel)->fun(()->(put!(c,"waiting");take!(c)), args...; kargs...)')
 this = sys.modules[__name__]
 
 Symbol = lambda s: Ju.eval("PyCall.pyjlwrap_new(:%s)"%s.lstrip(":"))
-def torgba(*args, **kargs):
-    return Ju.torgba(*args, **kargs)
 
 def paint(wc, *args, **kargs):
     if args and isinstance(args[0], str) and args[0].lower().endswith(".svg"):
         return paintsvg(wc, *args, **kargs)
-    mat = torgba(Ju.paint(wc.jwc, *args, **kargs))
+    mat = Ju.eval("WordCloud.torgba")(Ju.paint(wc.jwc, *args, **kargs))
     mat = np.array(mat).astype('uint8')
     img = Image.fromarray(mat)
     return img
