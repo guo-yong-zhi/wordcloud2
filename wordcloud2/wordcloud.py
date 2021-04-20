@@ -58,7 +58,10 @@ def setstate(wc, state):
     return state
 def gif_generate(*args, **kargs):
     return Ju.eval("WordCloud.generate")(*args, **kargs)
-
+def recolor(wc, *args, **kargs):
+    if "style" in kargs:
+        kargs["style"] = Symbol(kargs["style"])
+    Ju.recolor_b(wc.jwc, *args, **kargs)
 class suspendedfun:
     def __init__(self, fun, wc, *args, **kargs):
         self.wc = wc
