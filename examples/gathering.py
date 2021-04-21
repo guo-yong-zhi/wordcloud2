@@ -12,5 +12,4 @@ wc.generate(patient=-1)
 print("results are saved to gathering.svg")
 wc.paint("gathering.svg")
 wc
-#eval# runexample(:gathering)
 #md# ![](gathering.svg)

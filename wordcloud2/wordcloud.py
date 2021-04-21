@@ -1,23 +1,36 @@
 import sys
 from julia import Main
 from PIL import Image
+import types
 import numpy as np
 Ju = Main
 Ju.using("WordCloud")
 
 Ju.eval('suspendedfuncfactory(fun, args...; kargs...) = (c::Channel)->fun(()->(put!(c,"waiting");take!(c)), args...; kargs...)')
+Ju.eval("funwrapper(f)=(args...; kargs...)->f(args...; kargs...)")
 this = sys.modules[__name__]
 
 Symbol = lambda s: Ju.eval("PyCall.pyjlwrap_new(:%s)"%s.lstrip(":"))
 
+def jimage2pyimage(jimg):
+    mat = Ju.eval("WordCloud.torgba")(jimg)
+    mat = np.array(mat).astype('uint8')
+    pyimg = Image.fromarray(mat)
+    return pyimg
+
 def paint(wc, *args, **kargs):
     if args and isinstance(args[0], str) and args[0].lower().endswith(".svg"):
         return paintsvg(wc, *args, **kargs)
-    mat = Ju.eval("WordCloud.torgba")(Ju.paint(wc.jwc, *args, **kargs))
-    mat = np.array(mat).astype('uint8')
-    img = Image.fromarray(mat)
-    return img
+    r = Ju.paint(wc.jwc, *args, **kargs)
+    return jimage2pyimage(r)
 
+def showmask(*args, **kargs):
+    return jimage2pyimage(Ju.showmask(*args, **kargs))
+
+def backgroundmask(bg, c, *args, **kargs):
+    if isinstance(c, types.FunctionType):
+        c = Ju.funwrapper(c)
+    return Ju.eval("WordCloud.backgroundmask")(bg, c, *args, **kargs)
 class SVG:
     def __init__(self, svgstring):
         self.content = svgstring
@@ -25,7 +38,7 @@ class SVG:
         return self.content
 
 def paintsvg(wc, *args, **kargs):
-    svg = Ju.paintsvg(wc.jwc, *args, **kargs);
+    svg = Ju.paintsvg(wc.jwc, *args, **kargs)
     return SVG(Ju.svgstring(svg))
 
 class WC:
@@ -48,6 +61,8 @@ class WC:
 def wordcloud(*args, **kargs):
     if "colors" in kargs and isinstance(kargs["colors"],str) and kargs["colors"].startswith(":"):
         kargs["colors"] = Symbol(kargs["colors"])
+    if "transparentcolor" in kargs and isinstance(kargs["transparentcolor"], types.FunctionType):
+        kargs["transparentcolor"] = Ju.funwrapper(kargs["transparentcolor"])
     wc = Ju.wordcloud(*args, **kargs)
     return WC(wc)
 
